@@ -1,0 +1,847 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Drivewell Agent Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one product shell, three working tabs (chat, voice, dashboard). Amber road-line divider is the only flourish. */
+:root{
+  --bg:#EDF1F0; --surface:#FFFFFF; --surface-2:#F4F7F6; --ink:#0E1F22; --muted:#556669; --line:#D5DDDC;
+  --accent:#0A6A67; --accent-ink:#FFFFFF; --accent-soft:#DCEFEE; --signal:#E8A200;
+  --good:#1B7F47; --good-soft:#DDF1E5; --warn:#8F5600; --warn-soft:#FBEBCB; --bad:#B93C0F; --bad-soft:#FBE3DA;
+  --shadow:0 1px 2px rgba(14,31,34,.06),0 10px 28px rgba(14,31,34,.07);
+  --display:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1517; --surface:#0F2023; --surface-2:#142A2D; --ink:#E7F0EF; --muted:#8FA6A8; --line:#22393C;
+    --accent:#41C4BE; --accent-ink:#06201F; --accent-soft:#12383A; --signal:#F2B22E;
+    --good:#4CC380; --good-soft:#12301F; --warn:#E6A93A; --warn-soft:#38290C; --bad:#F0885F; --bad-soft:#3A1C10;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.3); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1517; --surface:#0F2023; --surface-2:#142A2D; --ink:#E7F0EF; --muted:#8FA6A8; --line:#22393C;
+  --accent:#41C4BE; --accent-ink:#06201F; --accent-soft:#12383A; --signal:#F2B22E;
+  --good:#4CC380; --good-soft:#12301F; --warn:#E6A93A; --warn-soft:#38290C; --bad:#F0885F; --bad-soft:#3A1C10;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.3); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:0 48px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1160px;margin:0 auto}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-block:16px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:-.01em}
+.brand svg{width:30px;height:30px;flex:none}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 7px;margin-left:4px}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;flex-wrap:wrap}
+.tab{border:0;background:transparent;padding:8px 14px;border-radius:9px;font-weight:600;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.tab:not([aria-selected="true"]):hover{color:var(--ink);background:var(--surface-2)}
+.roadline{border-top:2px dashed var(--signal);opacity:.9}
+.intro{padding-block:28px 22px;display:grid;gap:8px}
+.intro h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,4.2vw,40px);line-height:1.08;letter-spacing:-.02em;margin:0;text-wrap:balance;max-width:20ch}
+.intro p{margin:0;color:var(--muted);max-width:64ch}
+.note{font-size:13px;color:var(--muted)}
+h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:-.01em}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.pad{padding:18px}
+
+/* chat */
+.chat{display:flex;flex-direction:column;height:650px;box-shadow:var(--shadow);overflow:hidden}
+.chat-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--display);font-weight:700;flex:none}
+.chat-head b{display:block;line-height:1.2}
+.status{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);display:inline-block}
+.ghost{margin-left:auto;border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 10px;font-size:13px;color:var(--muted)}
+.ghost:hover{color:var(--ink);background:var(--surface-2)}
+.msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:0;background:var(--surface-2)}
+.msg{max-width:88%;padding:10px 13px;border-radius:14px;overflow-wrap:anywhere}
+.msg.bot{background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px;align-self:flex-start}
+.msg.user{background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:4px;align-self:flex-end}
+.msg.wide{width:min(100%,460px);max-width:100%}
+.typing{display:flex;gap:4px;padding:13px 14px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-self:flex-start;max-width:95%}
+.chip{border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:500}
+.chip:hover{background:var(--accent-soft)}
+.composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);background:var(--surface)}
+.composer input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.primary{border:0;background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:10px 16px;font-weight:600}
+.primary:hover{filter:brightness(1.06)}
+.primary:disabled{opacity:.5;cursor:not-allowed}
+.mini{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:4px 12px;font-size:13px;font-weight:600}
+.mini.alt{background:transparent;color:var(--accent)}
+.carrow{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.carrow:first-child{border-top:0}
+.carsvg{width:58px;height:23px;color:var(--accent)}
+.carmeta b{display:block;line-height:1.25}
+.carmeta span{font-size:12.5px;color:var(--muted)}
+.carright{display:grid;justify-items:end;gap:4px}
+.carright b{font-family:var(--mono);font-size:14px;font-weight:500;line-height:1}
+.carright small{color:var(--muted);font-size:11px;margin-top:-3px}
+.lines{display:grid;gap:6px;margin:8px 0}
+.lines div{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.lines div span:last-child{font-family:var(--mono);font-size:13px;text-align:right}
+.lines .total{border-top:1px dashed var(--line);padding-top:7px;font-weight:600}
+.lines .total span:last-child{font-size:15px}
+.qhead{display:flex;align-items:center;gap:10px}
+.qhead svg{width:54px;height:22px;color:var(--accent);flex:none}
+.qhead b{display:block;line-height:1.2}.qhead span{font-size:12.5px;color:var(--muted)}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ok{display:flex;gap:8px;align-items:center;color:var(--good);font-weight:600}
+.ref{font-family:var(--mono);background:var(--good-soft);color:var(--good);border-radius:6px;padding:1px 7px}
+
+/* console */
+.console{display:grid;gap:16px;position:sticky;top:12px}
+.console h3{font-size:17px}
+.console .sub{margin:2px 0 0;font-size:13px;color:var(--muted)}
+dl{margin:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px 10px;font-size:13.5px}
+dt{color:var(--muted)}
+dd{margin:0;overflow-wrap:anywhere}
+.pill{display:inline-block;font-family:var(--mono);font-size:12px;padding:1px 7px;border-radius:6px;background:var(--accent-soft);color:var(--accent);margin:0 4px 4px 0}
+.badge{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px}
+.b-good{background:var(--good-soft);color:var(--good)}.b-warn{background:var(--warn-soft);color:var(--warn)}.b-bad{background:var(--bad-soft);color:var(--bad)}.b-neutral{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.console h4{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.try{display:flex;flex-wrap:wrap;gap:8px}
+
+/* voice */
+.vstage{display:grid;grid-template-columns:360px minmax(0,1fr);gap:20px;align-items:start}
+.form{display:grid;gap:12px}
+.form label{display:grid;gap:4px;font-size:13px;font-weight:600}
+.form input[type=text],.form input[type=tel],.form select{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:9px 11px;font-weight:400;width:100%}
+.form .check{display:flex;gap:9px;align-items:flex-start;font-weight:400;font-size:13px;color:var(--muted)}
+.form .check input{margin-top:3px;accent-color:var(--accent)}
+.err{color:var(--bad);font-size:13px;min-height:18px}
+.call{box-shadow:var(--shadow);overflow:hidden}
+.call-head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.call-head .who{display:grid;line-height:1.25}.call-head .who span{font-size:13px;color:var(--muted)}
+.timer{margin-left:auto;font-family:var(--mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums}
+.steps{display:flex;flex-wrap:wrap;gap:6px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.step{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.step.now{border-color:var(--accent);color:var(--accent);font-weight:600}
+.step.done{background:var(--good-soft);border-color:transparent;color:var(--good);font-weight:600}
+.wavebox{display:flex;align-items:center;gap:14px;padding:16px 18px}
+.wave{display:flex;align-items:center;gap:3px;height:48px;flex:1;min-width:0;overflow:hidden}
+.wave i{width:3px;height:6px;border-radius:2px;background:var(--line);flex:none}
+.wave.on i{background:var(--accent);animation:pulse .9s ease-in-out infinite;animation-delay:calc(var(--i) * 45ms)}
+.wave.on.caller i{background:var(--signal)}
+@keyframes pulse{0%,100%{height:6px}50%{height:calc(8px + var(--h) * 34px)}}
+.speaker{font-size:13px;color:var(--muted);min-width:96px;text-align:right}
+.transcript{padding:4px 18px 18px;display:grid;gap:10px;max-height:340px;overflow-y:auto}
+.line{display:grid;grid-template-columns:70px minmax(0,1fr);gap:10px;font-size:14.5px}
+.line .sp{font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding-top:3px}
+.line.a .sp{color:var(--accent)}
+.empty{padding:34px 18px;color:var(--muted);text-align:center}
+.outcome{border-top:1px solid var(--line);padding:16px 18px;display:grid;gap:12px;background:var(--surface-2)}
+.outcome dl{grid-template-columns:130px minmax(0,1fr)}
+
+/* dashboard */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.kpi{padding:16px}
+.kpi span{font-size:13px;color:var(--muted)}
+.kpi b{display:block;font-family:var(--display);font-size:32px;letter-spacing:-.02em;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi small{color:var(--muted);font-size:12.5px}
+.charts{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;margin-bottom:16px}
+.charts h3{font-size:17px;margin-bottom:2px}
+.charts .sub{margin:0 0 10px;font-size:13px;color:var(--muted)}
+svg.chart{width:100%;height:auto;display:block}
+.chart text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .area{fill:var(--accent);opacity:.14}
+.chart .stroke{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.chart .peak{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+.chart .peaktxt{fill:var(--ink);font-weight:500}
+.bars{display:grid;gap:10px}
+.bar{display:grid;grid-template-columns:92px minmax(0,1fr) 40px;align-items:center;gap:10px;font-size:13.5px}
+.bar .track{height:12px;background:var(--surface-2);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.bar .fill{height:100%;background:var(--accent);border-radius:5px}
+.bar .v{font-family:var(--mono);font-size:12.5px;text-align:right}
+.axis{display:grid;grid-template-columns:92px minmax(0,1fr) 40px;gap:10px;margin-top:6px}
+.axis div{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--muted);grid-column:2}
+.listhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.listhead h3{font-size:17px}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.f{border:1px solid var(--line);background:transparent;border-radius:999px;padding:3px 12px;font-size:13px;color:var(--muted)}
+.f[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.conv{width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:transparent;padding:12px 18px;display:grid;grid-template-columns:52px minmax(0,1.1fr) 92px minmax(0,1.6fr) 84px;gap:12px;align-items:center;font-size:14px}
+.conv:hover{background:var(--surface-2)}
+.conv .t{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.conv .who{font-weight:600}
+.conv .ch{color:var(--muted);font-size:13px}
+.detail{padding:0 18px 14px 82px;color:var(--muted);font-size:14px;max-width:80ch}
+.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:20px}
+.how h4{font-size:15px;margin-bottom:6px}
+.how p{margin:0;font-size:13.5px;color:var(--muted)}
+
+@media (max-width:980px){
+  .stage,.vstage{grid-template-columns:minmax(0,1fr)}
+  .console{position:static}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .charts,.how{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .chat{height:600px}
+  .conv{grid-template-columns:48px minmax(0,1fr) 84px;grid-template-areas:"t who out" "t topic topic"}
+  .conv .t{grid-area:t}.conv .who{grid-area:who}.conv .ch{display:none}.conv .topic{grid-area:topic}.conv .outc{grid-area:out;justify-self:end}
+  .detail{padding-left:18px}
+  .line{grid-template-columns:54px minmax(0,1fr)}
+  .timer{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .wave.on i,.typing i{animation:none}
+  .wave.on i{height:calc(8px + var(--h) * 20px)}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="sedan" viewBox="0 0 120 48">
+    <path d="M4 35V30Q4 27 8 26L26 22L38 11Q40 9 44 9H78Q82 9 84 11L98 23L112 26Q116 27 116 31V35Q116 37 114 37H104A10 10 0 0 0 84 37H36A10 10 0 0 0 16 37H6Q4 37 4 35Z" fill="currentColor"/>
+    <path d="M41 13H51V22H31ZM56 13H78L90 22H56Z" style="fill:var(--surface);opacity:.9"/>
+    <circle cx="26" cy="37" r="8" style="fill:var(--ink)"/><circle cx="94" cy="37" r="8" style="fill:var(--ink)"/>
+    <circle cx="26" cy="37" r="3" style="fill:var(--surface)"/><circle cx="94" cy="37" r="3" style="fill:var(--surface)"/>
+  </symbol>
+  <symbol id="suv" viewBox="0 0 120 48">
+    <path d="M4 35V29Q4 26 8 25L22 22L31 10Q33 8 37 8H88Q92 8 94 10L103 22L112 25Q116 26 116 30V35Q116 37 114 37H104A10 10 0 0 0 84 37H36A10 10 0 0 0 16 37H6Q4 37 4 35Z" fill="currentColor"/>
+    <path d="M36 12H52V22H27ZM57 12H87L97 22H57Z" style="fill:var(--surface);opacity:.9"/>
+    <circle cx="26" cy="37" r="8" style="fill:var(--ink)"/><circle cx="94" cy="37" r="8" style="fill:var(--ink)"/>
+    <circle cx="26" cy="37" r="3" style="fill:var(--surface)"/><circle cx="94" cy="37" r="3" style="fill:var(--surface)"/>
+  </symbol>
+  <symbol id="van" viewBox="0 0 120 48">
+    <path d="M4 35V14Q4 8 10 8H82Q88 8 91 12L103 24L112 27Q116 28 116 31V35Q116 37 114 37H104A10 10 0 0 0 84 37H36A10 10 0 0 0 16 37H6Q4 37 4 35Z" fill="currentColor"/>
+    <path d="M10 12H28V22H10ZM33 12H51V22H33ZM56 12H78L88 22H56Z" style="fill:var(--surface);opacity:.9"/>
+    <circle cx="26" cy="37" r="8" style="fill:var(--ink)"/><circle cx="94" cy="37" r="8" style="fill:var(--ink)"/>
+    <circle cx="26" cy="37" r="3" style="fill:var(--surface)"/><circle cx="94" cy="37" r="3" style="fill:var(--surface)"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" style="fill:var(--accent)"/><path d="M14 4V9M14 12V16M14 19V24" style="stroke:var(--signal)" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
+      Drivewell <span class="tag">AI agent demo</span>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Demo sections">
+      <button class="tab" role="tab" id="tab-chat" aria-selected="true" aria-controls="panel-chat">Chat agent</button>
+      <button class="tab" role="tab" id="tab-voice" aria-selected="false" aria-controls="panel-voice" tabindex="-1">Voice agent</button>
+      <button class="tab" role="tab" id="tab-dashboard" aria-selected="false" aria-controls="panel-dashboard" tabindex="-1">Team dashboard</button>
+    </div>
+  </header>
+  <div class="roadline"></div>
+
+  <section class="intro">
+    <h1>Customer support that books the car.</h1>
+    <p>A demo of an AI agent for a car rental company: it answers questions, quotes prices, takes bookings and hands over to staff when needed. Responses here are scripted so the demo works without a backend.</p>
+  </section>
+
+  <!-- CHAT -->
+  <section id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
+    <div class="stage">
+      <div class="card chat">
+        <div class="chat-head">
+          <div class="avatar" aria-hidden="true">D</div>
+          <div><b>Drive, Drivewell assistant</b><span class="status"><i class="dot"></i>Online, replies in seconds</span></div>
+          <button class="ghost" id="reset" type="button">Restart</button>
+        </div>
+        <div class="msgs" id="msgs" aria-live="polite"></div>
+        <form class="composer" id="composer" autocomplete="off">
+          <input id="chat-input" type="text" placeholder="Ask about cars, prices or booking. Roman Urdu works too." aria-label="Message">
+          <button class="primary" type="submit">Send</button>
+        </form>
+      </div>
+      <aside class="card pad console" aria-label="Agent console">
+        <div>
+          <h3>Agent console</h3>
+          <p class="sub">What the agent did for your latest message.</p>
+        </div>
+        <dl>
+          <dt>Intent</dt><dd id="c-intent">Waiting for a message</dd>
+          <dt>Language</dt><dd id="c-lang">-</dd>
+          <dt>Tools called</dt><dd id="c-tools">-</dd>
+          <dt>Source</dt><dd id="c-source">-</dd>
+          <dt>Human handoff</dt><dd id="c-handoff"><span class="badge b-neutral">No</span></dd>
+        </dl>
+        <div>
+          <h4>Booking memory</h4>
+          <dl>
+            <dt>Car</dt><dd id="m-car">-</dd>
+            <dt>Pickup</dt><dd id="m-pickup">-</dd>
+            <dt>Days</dt><dd id="m-days">-</dd>
+            <dt>Name</dt><dd id="m-name">-</dd>
+          </dl>
+        </div>
+        <div>
+          <h4>Try these</h4>
+          <div class="try">
+            <button class="chip" data-send="What cars do you have?">What cars do you have?</button>
+            <button class="chip" data-send="SUV for 3 days, how much?">SUV for 3 days, how much?</button>
+            <button class="chip" data-send="I want to book a car">Book a car</button>
+            <button class="chip" data-send="Deposit and insurance?">Deposit and insurance?</button>
+            <button class="chip" data-send="Salam, sedan ka kiraya kitna hai?">Roman Urdu</button>
+            <button class="chip" data-send="I want a refund, let me talk to a person">Talk to a person</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- VOICE -->
+  <section id="panel-voice" role="tabpanel" aria-labelledby="tab-voice" hidden>
+    <div class="vstage">
+      <div class="card pad">
+        <h3 style="font-size:18px;margin-bottom:4px">A lead fills in a form</h3>
+        <p class="note" style="margin:0 0 14px">The agent calls within seconds, qualifies the lead and holds a car. Demo only: no real call is placed.</p>
+        <form class="form" id="vform" autocomplete="off">
+          <label for="vf-name">Name<input id="vf-name" type="text" value="Sara Ahmed"></label>
+          <label for="vf-phone">Phone<input id="vf-phone" type="tel" value="+1 555 0142"></label>
+          <label for="vf-car">Interested in
+            <select id="vf-car"><option value="tucson">Hyundai Tucson (SUV)</option><option value="corolla">Toyota Corolla (Sedan)</option><option value="hiace">Toyota Hiace (Van)</option><option value="bmw">BMW 3 Series (Premium)</option></select>
+          </label>
+          <label for="vf-day">Preferred pickup
+            <select id="vf-day"><option>Friday</option><option>Saturday</option><option>Monday</option></select>
+          </label>
+          <label class="check" for="vf-consent"><input id="vf-consent" type="checkbox" checked>I agree to receive a call about this request. Consent is stored with the lead.</label>
+          <div class="err" id="vf-err" role="alert"></div>
+          <button class="primary" id="vf-go" type="submit">Submit and watch the call</button>
+          <button class="ghost" id="vf-sound" type="button" aria-pressed="false" style="margin-left:0">Voice sound: off</button>
+        </form>
+      </div>
+      <div class="card call" id="call">
+        <div class="call-head">
+          <div class="avatar" aria-hidden="true">D</div>
+          <div class="who"><b id="call-title">Drivewell voice agent</b><span id="call-sub">Waiting for a form submission</span></div>
+          <div class="timer" id="timer" aria-label="Elapsed time">00:00</div>
+        </div>
+        <div class="steps" id="steps"></div>
+        <div class="wavebox"><div class="wave" id="wave" aria-hidden="true"></div><div class="speaker" id="speaker">Idle</div></div>
+        <div class="transcript" id="transcript"><div class="empty">The live transcript appears here once the call connects.</div></div>
+        <div class="outcome" id="outcome" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" hidden>
+    <p class="note" style="margin:0 0 12px">Sample data for illustration.</p>
+    <div class="kpis" id="kpis"></div>
+    <div class="charts">
+      <div class="card pad">
+        <h3>Conversations by hour</h3>
+        <p class="sub">Today, all channels. Peak hour marked.</p>
+        <div id="vol"></div>
+      </div>
+      <div class="card pad">
+        <h3>What customers ask about</h3>
+        <p class="sub">Share of today's conversations.</p>
+        <div class="bars" id="intents"></div>
+        <div class="axis"><div><span>0%</span><span>10%</span><span>20%</span><span>30%</span><span>40%</span></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="listhead">
+        <h3>Recent conversations</h3>
+        <div class="filters" id="filters">
+          <button class="f" aria-pressed="true" data-f="All">All</button>
+          <button class="f" aria-pressed="false" data-f="Booked">Booked</button>
+          <button class="f" aria-pressed="false" data-f="Resolved">Resolved</button>
+          <button class="f" aria-pressed="false" data-f="Handoff">Handoff</button>
+        </div>
+      </div>
+      <div id="convs"></div>
+    </div>
+  </section>
+
+  <section class="how" aria-label="How this works in production">
+    <div class="card pad"><h4>Chat</h4><p>Next.js widget and API route, an LLM with tool calls for availability, rates and bookings, and answers grounded in the company's own FAQ and price list.</p></div>
+    <div class="card pad"><h4>Voice</h4><p>A form webhook triggers a Vapi or Retell call. The transcript, outcome and consent are written back to the CRM.</p></div>
+    <div class="card pad"><h4>Dashboard</h4><p>Every conversation is stored, tagged by intent and outcome, so staff see what was handled and what needs a person.</p></div>
+  </section>
+</div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$'+n.toFixed(2).replace(/\.00$/,'');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ---------- tabs ---------- */
+const TABS=['chat','voice','dashboard'];
+function showTab(id){
+  TABS.forEach(k=>{
+    $('#panel-'+k).hidden=k!==id;
+    const b=$('#tab-'+k); b.setAttribute('aria-selected',String(k===id)); b.tabIndex=k===id?0:-1;
+  });
+  try{history.replaceState(null,'','#'+id)}catch(e){}
+  if(id==='dashboard'&&typeof renderVolume==='function')renderVolume();
+}
+TABS.forEach(k=>$('#tab-'+k).addEventListener('click',()=>showTab(k)));
+$('.tabs').addEventListener('keydown',e=>{
+  if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
+  const i=TABS.findIndex(k=>$('#tab-'+k).getAttribute('aria-selected')==='true');
+  const n=TABS[(i+(e.key==='ArrowRight'?1:TABS.length-1))%TABS.length];
+  showTab(n); $('#tab-'+n).focus();
+});
+let h=''; try{h=(location.hash||'').slice(1)}catch(e){}
+showTab(TABS.includes(h)?h:'chat');
+
+/* ---------- data ---------- */
+const FLEET=[
+  {id:'yaris',name:'Toyota Yaris',cat:'Economy',sym:'sedan',seats:5,bags:2,rate:34},
+  {id:'corolla',name:'Toyota Corolla',cat:'Sedan',sym:'sedan',seats:5,bags:3,rate:46},
+  {id:'tucson',name:'Hyundai Tucson',cat:'SUV',sym:'suv',seats:5,bags:4,rate:68},
+  {id:'hiace',name:'Toyota Hiace',cat:'Van',sym:'van',seats:12,bags:8,rate:95},
+  {id:'bmw',name:'BMW 3 Series',cat:'Premium',sym:'sedan',seats:5,bags:3,rate:110}
+];
+const carById=id=>FLEET.find(c=>c.id===id);
+function findCar(t){
+  if(/yaris|economy|cheap|budget|sasti/.test(t))return carById('yaris');
+  if(/corolla|sedan/.test(t))return carById('corolla');
+  if(/tucson|suv|jeep|4x4/.test(t))return carById('tucson');
+  if(/hiace|\bvan\b|group|coaster|12 seat/.test(t))return carById('hiace');
+  if(/bmw|premium|luxury|3 series/.test(t))return carById('bmw');
+  return null;
+}
+const POLICIES=[
+  {re:/deposit|hold\b/,key:'Deposit',en:'We place a refundable $200 hold on your card at pickup. It is released within 5 business days after the car comes back in the same condition.',ur:'Pickup par aap ke card par $200 ka refundable hold lagta hai. Gaari wapis karne ke 5 working din mein yeh release ho jata hai.'},
+  {re:/insur|cover|excess|damage/,key:'Insurance',en:'Basic insurance is included in every rental, with a $500 excess. You can add full cover for $12 per day to bring the excess to zero.'},
+  {re:/fuel|petrol|diesel|gas\b|tank/,key:'Fuel',en:'Cars are handed over with a full tank and should come back full. If not, we refuel and charge the fuel at cost plus a $10 service fee.'},
+  {re:/cancel|change my booking|reschedul/,key:'Cancellation',en:'Cancellation is free until 24 hours before pickup. After that, the first day is charged. Changes within 24 hours are handled by our staff.'},
+  {re:/licen|document|passport|\bid\b|age\b|old/,key:'Documents',en:'Bring a driving license held for at least one year, a passport or national ID, and a credit or debit card in the driver\'s name. Minimum age is 23, or 25 for Premium cars.'},
+  {re:/mileage|\bkm\b|kilomet|distance/,key:'Mileage',en:'Each rental includes 200 km per day. Extra distance is $0.25 per km.'},
+  {re:/airport|deliver|drop|collect/,key:'Delivery',en:'We deliver and collect at the airport or an address in the city for a flat $15 each way.'},
+  {re:/payment|\bpay\b|visa|master|cash/,key:'Payment',en:'We accept Visa and Mastercard. The rental is charged at pickup and the deposit is a separate card hold.'}
+];
+const WEEKDAYS=['sun','mon','tue','wed','thu','fri','sat'];
+
+/* ---------- chat state ---------- */
+let ctx={car:null,pickup:null,days:null,name:null,step:null};
+function resetCtx(){ctx={car:null,pickup:null,days:null,name:null,step:null}}
+const msgs=$('#msgs');
+function scrollDown(){msgs.scrollTop=msgs.scrollHeight}
+function addUser(t){const d=document.createElement('div');d.className='msg user';d.textContent=t;msgs.appendChild(d);scrollDown()}
+function addBot(html,wide){const d=document.createElement('div');d.className='msg bot'+(wide?' wide':'');d.innerHTML=html;msgs.appendChild(d);scrollDown();return d}
+function addChips(list){
+  const d=document.createElement('div');d.className='chips';
+  d.innerHTML=list.map(t=>`<button class="chip" data-send="${esc(t)}">${esc(t)}</button>`).join('');
+  msgs.appendChild(d);scrollDown();
+}
+let typingEl=null;
+function showTyping(){hideTyping();typingEl=document.createElement('div');typingEl.className='msg bot typing';typingEl.innerHTML='<i></i><i></i><i></i>';msgs.appendChild(typingEl);scrollDown()}
+function hideTyping(){if(typingEl){typingEl.remove();typingEl=null}}
+
+function carRow(c){
+  return `<div class="carrow"><svg class="carsvg" viewBox="0 0 120 48" aria-hidden="true"><use href="#${c.sym}"/></svg>
+  <div class="carmeta"><b>${c.name}</b><span>${c.cat} · ${c.seats} seats · ${c.bags} bags · Auto</span></div>
+  <div class="carright"><b>${money(c.rate)}</b><small>per day</small><button class="mini" data-act="pick" data-car="${c.id}">Book</button></div></div>`;
+}
+function calc(car,days){
+  const base=car.rate*days, disc=days>=7?base*0.1:0, sub=base-disc, tax=sub*0.08;
+  return {base,disc,sub,tax,total:sub+tax};
+}
+function quoteCard(car,days,pickup){
+  const q=calc(car,days);
+  return `<div class="qhead"><svg viewBox="0 0 120 48" aria-hidden="true"><use href="#${car.sym}"/></svg><div><b>${car.name}</b><span>${days} ${days===1?'day':'days'}${pickup?' · pickup '+esc(pickup):''}</span></div></div>
+  <div class="lines">
+    <div><span>${money(car.rate)} x ${days}</span><span>${money(q.base)}</span></div>
+    ${q.disc?`<div><span>Weekly discount 10%</span><span>-${money(q.disc)}</span></div>`:''}
+    <div><span>Basic insurance</span><span>Included</span></div>
+    <div><span>Tax 8%</span><span>${money(q.tax)}</span></div>
+    <div class="total"><span>Total</span><span>${money(q.total)}</span></div>
+  </div>`;
+}
+function confirmCard(){
+  const car=carById(ctx.car.id);
+  return `<b>Please confirm your booking</b>${quoteCard(car,ctx.days,ctx.pickup)}
+  <div class="note">Name: ${esc(ctx.name)} · $200 refundable hold at pickup</div>
+  <div class="btnrow"><button class="mini" data-act="confirm">Confirm booking</button><button class="mini alt" data-act="change">Start over</button></div>`;
+}
+
+function dateLabel(offset){
+  const d=new Date();d.setDate(d.getDate()+offset);
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function parsePickup(t){
+  if(/today|tonight|\baaj\b/.test(t))return 'Today, '+dateLabel(0);
+  if(/tomorrow|\bkal\b/.test(t))return 'Tomorrow, '+dateLabel(1);
+  const m=t.match(/\b(sun|mon|tue|wed|thu|fri|sat)[a-z]*/);
+  if(m){const idx=WEEKDAYS.indexOf(m[1]);const off=(idx-new Date().getDay()+7)%7||7;return dateLabel(off)}
+  return null;
+}
+function parseDays(t,strict){
+  let m=t.match(/(\d{1,2})\s*weeks?/); if(m)return Math.min(30,+m[1]*7);
+  m=t.match(/(\d{1,2})\s*(?:day|days|din|night|nights)/); if(m)return Math.min(30,Math.max(1,+m[1]));
+  if(/\bweekend\b/.test(t))return 3;
+  if(/\bweek\b/.test(t))return 7;
+  if(strict){m=t.match(/^\s*(\d{1,2})\s*$/); if(m)return Math.min(30,Math.max(1,+m[1]))}
+  return null;
+}
+
+function nextStep(trace){
+  if(!ctx.car){
+    ctx.step='car';
+    return ['Happy to set that up. Which car would you like?',{chips:FLEET.map(c=>c.name)}];
+  }
+  if(!ctx.pickup){
+    ctx.step='pickup';
+    return [`${esc(ctx.car.name)}, good choice. When would you like to pick it up?`,{chips:['Today','Tomorrow','This Friday','Next Monday']}];
+  }
+  if(!ctx.days){
+    ctx.step='days';
+    trace.tools.push('check_availability');
+    return [`The ${esc(ctx.car.name)} is free on ${esc(ctx.pickup)}. For how many days?`,{chips:['1 day','3 days','7 days','14 days']}];
+  }
+  if(!ctx.name){
+    ctx.step='name';
+    trace.tools.push('get_rates');
+    return ['Almost done. What name should I put the booking under?'];
+  }
+  ctx.step='confirm';
+  return [{html:confirmCard(),wide:true}];
+}
+
+function respond(raw){
+  const t=raw.toLowerCase().trim();
+  const ur=/\b(salam|assalam|kiraya|gari|gaari|kitna|kitni|chahiye|chahie|mujhe|kya)\b/.test(t);
+  const trace={intent:'Other',lang:ur?'Roman Urdu':'English',tools:[],source:'-',handoff:false};
+  const out=[];
+  const push=(x)=>out.push(x);
+
+  if(/\b(human|person|manager|staff|someone|complain|complaint|refund|insaan|banda)\b/.test(t)||/talk to (an )?agent/.test(t)){
+    trace.intent='Human handoff';trace.handoff=true;trace.tools.push('handoff_to_human');trace.source='Escalation rules';
+    const learned=[ctx.car&&ctx.car.name,ctx.pickup,ctx.days&&ctx.days+' days'].filter(Boolean);
+    push(`I'm passing you to a teammate now, with this conversation attached so you don't have to repeat yourself.${learned.length?` I've noted: ${esc(learned.join(', '))}.`:''} Staff reply within 5 minutes between 8 am and 10 pm.`);
+    return {parts:out,trace};
+  }
+  if(ctx.step&&/\b(cancel|stop|never ?mind|reset|start over)\b/.test(t)){
+    resetCtx();trace.intent='Cancel booking flow';
+    push('No problem, I cleared the booking. Anything else I can help with?');
+    out.push({chips:['What cars do you have?','Deposit and insurance?']});
+    return {parts:out,trace};
+  }
+
+  if(ctx.step){
+    trace.intent='Booking: '+({car:'choose car',pickup:'pickup date',days:'duration',name:'customer name',confirm:'confirmation'})[ctx.step];
+    trace.source='Booking flow';
+    if(ctx.step==='car'){
+      const c=findCar(t);
+      if(!c){push('I did not catch the car. Pick one of these:');out.push({chips:FLEET.map(c=>c.name)});return {parts:out,trace}}
+      ctx.car=c;
+    }else if(ctx.step==='pickup'){
+      const p=parsePickup(t);
+      if(!p){push('Which day? You can say today, tomorrow or a weekday.');out.push({chips:['Today','Tomorrow','This Friday','Next Monday']});return {parts:out,trace}}
+      ctx.pickup=p;
+    }else if(ctx.step==='days'){
+      const d=parseDays(t,true);
+      if(!d){push('How many days do you need the car? A number is fine.');out.push({chips:['1 day','3 days','7 days','14 days']});return {parts:out,trace}}
+      ctx.days=d;
+    }else if(ctx.step==='name'){
+      const n=raw.trim().replace(/^(my name is|i am|i'm|name is)\s+/i,'').slice(0,40);
+      if(!/^[\p{L}][\p{L} .'-]{1,38}$/u.test(n)){push('Please send just your name, for example Sara Ahmed.');return {parts:out,trace}}
+      ctx.name=n.replace(/\b\p{L}/gu,m=>m.toUpperCase());
+    }else if(ctx.step==='confirm'){
+      if(/^(y|yes|yeah|yep|confirm|ok|okay|sure|haan|han|done)\b/.test(t)){
+        const ref='DW-'+String(Math.floor(10000+Math.random()*89999));
+        const car=ctx.car,q=calc(car,ctx.days);
+        trace.intent='Booking created';trace.tools.push('create_booking','send_confirmation_sms');trace.source='Booking system';
+        push(`<div class="ok">Booking confirmed <span class="ref">${ref}</span></div>
+        <div class="lines"><div><span>${esc(car.name)}</span><span>${ctx.days} ${ctx.days===1?'day':'days'}</span></div><div><span>Pickup</span><span>${esc(ctx.pickup)}</span></div><div><span>Name</span><span>${esc(ctx.name)}</span></div><div class="total"><span>Total at pickup</span><span>${money(q.total)}</span></div></div>
+        <div class="note">A confirmation was sent by text. Bring your license and card.</div>`);
+        out.push({chips:['Deposit and insurance?','Book another car']});
+        resetCtx();
+        return {parts:out,trace};
+      }
+      resetCtx();push('Okay, I cancelled that booking. Want to try a different car?');out.push({chips:['What cars do you have?']});
+      return {parts:out,trace};
+    }
+    const r=nextStep(trace);
+    r.forEach(x=>push(x));
+    return {parts:out,trace};
+  }
+
+  const car=findCar(t), days=parseDays(t,false), pickup=parsePickup(t);
+
+  if(t.split(/\s+/).length<=3&&/^(hi|hello|hey|salam|assalam|aoa|good (morning|afternoon|evening))\b/.test(t)){
+    trace.intent='Greeting';
+    push(ur?'Assalam o Alaikum! Main Drivewell ka AI assistant hoon. Gaari ke rates, availability ya booking, kisi bhi cheez mein madad kar sakta hoon.':'Hi, I\'m Drive, the Drivewell assistant. I can show cars, give you a price, answer rental questions and take a booking.');
+    out.push({chips:['What cars do you have?','I want to book a car','Deposit and insurance?']});
+    return {parts:out,trace};
+  }
+
+  if(/\b(price|cost|rate|rates|how much|kitna|kitni|kiraya|quote|charge|charges)\b/.test(t)){
+    trace.intent='Pricing';trace.source='Price list';trace.tools.push('get_rates');
+    if(car&&days){
+      trace.tools.push('check_availability');
+      push(ur?'Aap ka quote tayyar hai:':'Here is your quote:');
+      push({html:quoteCard(car,days,pickup),wide:true});
+      out.push({chips:['Book this','Deposit and insurance?']});
+      ctx.car=car;ctx.days=days;if(pickup)ctx.pickup=pickup;
+      return {parts:out,trace};
+    }
+    if(car){
+      ctx.car=car;
+      push(ur?`${esc(car.name)} ka kiraya ${money(car.rate)} roz hai. Basic insurance aur 200 km roz shamil hain. Kitne din ke liye chahiye?`:`${esc(car.name)} is ${money(car.rate)} per day, with basic insurance and 200 km per day included. How many days do you need it for?`);
+      out.push({chips:[car.name+' for 3 days',car.name+' for 7 days','Book this']});
+      return {parts:out,trace};
+    }
+    push(ur?'Roz ka kiraya: Economy $34, Sedan $46, SUV $68, Van $95, Premium $110. Kisi gaari ka naam aur din bata dein to poora quote bana doon.':'Daily rates: Economy $34, Sedan $46, SUV $68, Van $95, Premium $110. Basic insurance and 200 km per day are included, and rentals of 7 days or more get 10% off. Tell me a car and the number of days for an exact quote.');
+    out.push({chips:['SUV for 3 days, how much?','Van for 7 days, how much?']});
+    return {parts:out,trace};
+  }
+
+  if(/\b(book|reserve|rent|hire|booking)\b/.test(t)||/book this/.test(t)){
+    trace.intent='Booking: start';trace.source='Booking flow';
+    if(car)ctx.car=car; if(days)ctx.days=days; if(pickup)ctx.pickup=pickup;
+    const r=nextStep(trace);
+    r.forEach(x=>push(x));
+    return {parts:out,trace};
+  }
+
+  if(/\b(car|cars|available|availability|fleet|options|suv|sedan|van|economy|premium|gari|gaari|vehicle)\b/.test(t)){
+    trace.intent='Availability';trace.tools.push('check_availability');trace.source='Fleet inventory';
+    const list=car&&!/cars|fleet|options|vehicle/.test(t)?[car]:FLEET;
+    push(ur?'Yeh hamari gaariyan hain:':(list.length===1?'Here is what I have:':'Here is the current fleet:'));
+    push({html:list.map(carRow).join(''),wide:true});
+    out.push({chips:['SUV for 3 days, how much?','I want to book a car']});
+    return {parts:out,trace};
+  }
+
+  for(const p of POLICIES){
+    if(p.re.test(t)){
+      trace.intent='Policy: '+p.key;trace.tools.push('search_knowledge_base');trace.source='Rental terms (FAQ)';
+      push(ur&&p.ur?p.ur:p.en);
+      const others=POLICIES.filter(x=>x!==p&&x.re.test(t));
+      others.slice(0,1).forEach(o=>push(o.en));
+      out.push({chips:['I want to book a car','Talk to a person']});
+      return {parts:out,trace};
+    }
+  }
+
+  trace.intent='Unclear request';trace.tools.push('search_knowledge_base');trace.source='No match, asked to rephrase';
+  push('I want to get this right. I can show cars, quote a price, explain our rental terms or take a booking. What would you like to do?');
+  out.push({chips:['What cars do you have?','Price list','I want to book a car','Talk to a person']});
+  return {parts:out,trace};
+}
+
+function renderConsole(trace){
+  $('#c-intent').textContent=trace.intent;
+  $('#c-lang').textContent=trace.lang;
+  $('#c-tools').innerHTML=trace.tools.length?trace.tools.map(t=>`<span class="pill">${t}</span>`).join(''):'None needed';
+  $('#c-source').textContent=trace.source;
+  $('#c-handoff').innerHTML=trace.handoff?'<span class="badge b-warn">Yes, passed to staff</span>':'<span class="badge b-neutral">No</span>';
+  renderMemory();
+}
+function renderMemory(){
+  $('#m-car').textContent=ctx.car?ctx.car.name:'-';
+  $('#m-pickup').textContent=ctx.pickup||'-';
+  $('#m-days').textContent=ctx.days||'-';
+  $('#m-name').textContent=ctx.name||'-';
+}
+
+let busy=false;
+async function handle(text){
+  text=text.trim(); if(busy||!text)return; busy=true;
+  addUser(text);
+  const r=respond(text);
+  await sleep(300); showTyping();
+  renderConsole(r.trace);
+  for(let i=0;i<r.parts.length;i++){
+    await sleep(i===0?750:520); hideTyping();
+    const p=r.parts[i];
+    if(typeof p==='string')addBot(p);
+    else if(p.chips)addChips(p.chips);
+    else if(p.html)addBot(p.html,p.wide);
+    if(i<r.parts.length-1)showTyping();
+  }
+  hideTyping();busy=false;
+  renderMemory();
+}
+function intro(){
+  msgs.innerHTML='';
+  addBot('Hi, I\'m Drive. I can show cars, give you a price, answer questions about deposits and insurance, or book a car for you.');
+  addChips(['What cars do you have?','I want to book a car','Deposit and insurance?']);
+}
+function resetChat(){
+  resetCtx();busy=false;intro();renderMemory();
+  $('#c-intent').textContent='Waiting for a message';$('#c-lang').textContent='-';$('#c-tools').textContent='-';$('#c-source').textContent='-';
+  $('#c-handoff').innerHTML='<span class="badge b-neutral">No</span>';
+}
+$('#composer').addEventListener('submit',e=>{e.preventDefault();const i=$('#chat-input');const v=i.value;i.value='';handle(v)});
+document.addEventListener('click',e=>{
+  const s=e.target.closest('[data-send]');
+  if(s&&$('#panel-chat').contains(s)){handle(s.dataset.send);return}
+  const a=e.target.closest('[data-act]');
+  if(!a)return;
+  if(a.dataset.act==='pick')handle('Book the '+carById(a.dataset.car).name);
+  if(a.dataset.act==='confirm')handle('Yes, confirm');
+  if(a.dataset.act==='change')handle('Start over');
+});
+$('#reset').addEventListener('click',resetChat);
+resetChat();
+
+/* ---------- voice ---------- */
+const STEPS=['Form received','Dialing','Connected','Booking held','CRM updated'];
+$('#steps').innerHTML=STEPS.map((s,i)=>`<span class="step" data-i="${i}">${s}</span>`).join('');
+const wave=$('#wave');
+wave.innerHTML=Array.from({length:44},(_,i)=>`<i style="--i:${i};--h:${(0.25+Math.abs(Math.sin(i*1.7))*0.75).toFixed(2)}"></i>`).join('');
+function setStep(i){$$('.step').forEach(el=>{const n=+el.dataset.i;el.className='step'+(n<i?' done':n===i?' now':'')})}
+function allDone(){$$('.step').forEach(el=>el.className='step done')}
+let run=0,timerId=null,voiceOn=false,t0=0;
+const fmtT=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const wait=(ms,id)=>new Promise(r=>setTimeout(()=>r(id===run),ms));
+function say(text,who){
+  return new Promise(res=>{
+    const est=Math.max(1300,text.split(/\s+/).length*360);
+    if(!voiceOn||!('speechSynthesis' in window)){setTimeout(res,est);return}
+    try{
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text);u.rate=1.02;u.pitch=who==='a'?1:0.8;
+      let done=false;const fin=()=>{if(!done){done=true;res()}};
+      u.onend=fin;u.onerror=fin;setTimeout(fin,est*2.2+1500);
+      speechSynthesis.speak(u);
+    }catch(e){setTimeout(res,est)}
+  });
+}
+const soundBtn=$('#vf-sound');
+if(!('speechSynthesis' in window))soundBtn.hidden=true;
+soundBtn.addEventListener('click',()=>{voiceOn=!voiceOn;soundBtn.setAttribute('aria-pressed',String(voiceOn));soundBtn.textContent='Voice sound: '+(voiceOn?'on':'off')});
+
+function script(name,car,day){
+  const first=name.split(' ')[0], total=car.rate*3;
+  return [
+    ['a',`Hi ${first}, this is Drivewell's assistant. You just asked about the ${car.name}. Is now a good moment for a quick minute?`],
+    ['c','Yes, sure.'],
+    ['a',`Great. Would you prefer a morning or afternoon pickup on ${day}?`],
+    ['c','Morning, please.'],
+    ['a',`I have the ${car.name} free on ${day} at 9 am. Three days comes to ${money(total)} before tax, with basic insurance included. Want me to hold it?`],
+    ['c','Yes, please hold it.'],
+    ['a',`Done. It is held under ${name}, and I've texted you the details. A teammate will check your license at pickup. Anything else I can help with?`],
+    ['c','No, that is all. Thanks.'],
+    ['a',`Thanks ${first}. Have a good day.`]
+  ];
+}
+function addLine(who,text){
+  const tr=$('#transcript');
+  if(tr.querySelector('.empty'))tr.innerHTML='';
+  const d=document.createElement('div');d.className='line '+who;
+  d.innerHTML=`<div class="sp">${who==='a'?'Agent':'Caller'}</div><div></div>`;
+  d.lastChild.textContent=text;tr.appendChild(d);tr.scrollTop=tr.scrollHeight;
+}
+function speaking(who){
+  wave.classList.toggle('on',!!who);wave.classList.toggle('caller',who==='c');
+  $('#speaker').textContent=who==='a'?'Agent speaking':who==='c'?'Caller speaking':'Idle';
+}
+$('#vform').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const name=$('#vf-name').value.trim(),phone=$('#vf-phone').value.trim();
+  const err=$('#vf-err');err.textContent='';
+  if(name.length<2){err.textContent='Enter a name for the lead.';return}
+  if(!$('#vf-consent').checked){err.textContent='The agent only calls leads who agreed to be called.';return}
+  const car=carById($('#vf-car').value),day=$('#vf-day').value;
+  const id=++run;
+  try{speechSynthesis.cancel()}catch(x){}
+  clearInterval(timerId);
+  $('#outcome').hidden=true;$('#transcript').innerHTML='<div class="empty">The live transcript appears here once the call connects.</div>';
+  speaking(null);
+  $('#call-title').textContent='Drivewell voice agent';
+  $('#call-sub').textContent='Form received. Preparing the call';
+  setStep(0);
+  t0=Date.now();$('#timer').textContent='00:00';
+  timerId=setInterval(()=>{$('#timer').textContent=fmtT(Date.now()-t0)},250);
+  $('#call').scrollIntoView({behavior:'smooth',block:'nearest'});
+
+  if(!await wait(900,id))return;
+  setStep(1);$('#call-sub').textContent='Dialing '+phone;
+  if(!await wait(2800,id))return;
+  $('#call-sub').textContent='Ringing';
+  if(!await wait(2000,id))return;
+  const connectedAt=Date.now()-t0;
+  setStep(2);$('#call-title').textContent='Call with '+name;$('#call-sub').textContent='Connected after '+Math.round(connectedAt/1000)+' seconds';
+  for(const [who,text] of script(name,car,day)){
+    addLine(who,text);speaking(who);
+    await say(text,who);
+    if(id!==run)return;
+    speaking(null);
+    if(!await wait(380,id))return;
+  }
+  clearInterval(timerId);
+  const dur=fmtT(Date.now()-t0);$('#timer').textContent=dur;
+  setStep(3);$('#call-sub').textContent='Call ended';
+  if(!await wait(800,id))return;
+  setStep(4);
+  if(!await wait(800,id))return;
+  allDone();
+  const total=car.rate*3, tax=total*0.08;
+  const o=$('#outcome');
+  o.innerHTML=`<h4 style="font-size:16px">Call outcome</h4>
+  <dl>
+    <dt>Lead</dt><dd>${esc(name)}, ${esc(phone)}</dd>
+    <dt>Result</dt><dd><span class="badge b-good">Booking held</span></dd>
+    <dt>Car and dates</dt><dd>${esc(car.name)}, ${esc(day)} 9:00 am, 3 days</dd>
+    <dt>Quote</dt><dd>${money(total)} before tax, ${money(total+tax)} with 8% tax</dd>
+    <dt>Next step</dt><dd>Staff verify the driving license at pickup</dd>
+    <dt>Caller mood</dt><dd>Positive</dd>
+    <dt>Call length</dt><dd>${dur}, connected after ${Math.round(connectedAt/1000)} s</dd>
+    <dt>CRM</dt><dd>Lead stage moved to Booked, consent and transcript attached</dd>
+  </dl>`;
+  o.hidden=false;
+});
+
+/* ---------- dashboard ---------- */
+const VOL=[6,3,2,2,3,5,11,19,28,36,41,44,47,52,49,45,43,50,58,54,41,30,19,11];
+const total=VOL.reduce((a,b)=>a+b,0);
+$('#kpis').innerHTML=[
+  ['Conversations today',total.toLocaleString('en-US'),'Chat, voice and WhatsApp'],
+  ['Handled without staff','92%','8% passed to a person'],
+  ['Bookings made',String(Math.round(total*0.12)),'About 12% of conversations'],
+  ['First reply','2 s','Median across channels']
+].map(k=>`<div class="card kpi"><span>${k[0]}</span><b>${k[1]}</b><small>${k[2]}</small></div>`).join('');
+
+function renderVolume(){
+  const box=$('#vol');const W=Math.max(300,box.clientWidth||600),H=250,L=34,R=14,T=24,B=30,ymax=60;
+  const x=i=>L+(W-L-R)*i/23, y=v=>T+(H-T-B)*(1-v/ymax);
+  let g='';
+  [0,20,40,60].forEach(v=>{g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-8}" y="${y(v)+3}" text-anchor="end">${v}</text>`});
+  [0,6,12,18,23].forEach(i=>{g+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle">${String(i).padStart(2,'0')}:00</text>`});
+  const pts=VOL.map((v,i)=>[x(i),y(v)]);
+  const line='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
+  const area=line+`L${x(23)} ${y(0)}L${x(0)} ${y(0)}Z`;
+  const pi=VOL.indexOf(Math.max(...VOL));
+  g+=`<path class="area" d="${area}"/><path class="stroke" d="${line}"/><circle class="peak" cx="${pts[pi][0]}" cy="${pts[pi][1]}" r="5"/>`;
+  g+=`<text class="peaktxt" x="${pts[pi][0]-8}" y="${pts[pi][1]-8}" text-anchor="end">${VOL[pi]} at ${String(pi).padStart(2,'0')}:00</text>`;
+  $('#vol').innerHTML=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Conversations per hour today, peak ${VOL[pi]} at ${pi}:00">${g}</svg>`;
+}
+$('#intents').innerHTML=[['Booking',31],['Availability',24],['Pricing',18],['Policies',14],['Handoff',8],['Other',5]]
+  .map(([n,v])=>`<div class="bar"><span>${n}</span><div class="track"><div class="fill" style="width:${v/40*100}%"></div></div><span class="v">${v}%</span></div>`).join('');
+
+const CONVS=[
+  {t:'14:52',who:'Ayesha K.',ch:'Web chat',topic:'SUV for 5 days, family trip',out:'Booked',sum:'Quoted the Hyundai Tucson at $340 before tax, booked for a Friday pickup and placed the card hold.'},
+  {t:'14:31',who:'Daniel R.',ch:'Voice',topic:'Lead follow-up, Corolla',out:'Booked',sum:'Called 6 seconds after the form. Held a Corolla for 2 days and noted the license check for pickup.'},
+  {t:'14:10',who:'Visitor',ch:'Web chat',topic:'Deposit and fuel policy',out:'Resolved',sum:'Answered from the rental terms: $200 refundable hold and full-to-full fuel. No follow-up needed.'},
+  {t:'13:48',who:'Bilal M.',ch:'WhatsApp',topic:'Change pickup time',out:'Handoff',sum:'Change requested within 24 hours of pickup. Passed to staff with the booking reference and the new time.'},
+  {t:'13:22',who:'Sofia L.',ch:'Web chat',topic:'Van for 10 people',out:'Booked',sum:'Suggested the Hiace (12 seats). Booked for 2 days with airport delivery at $15.'},
+  {t:'12:55',who:'Visitor',ch:'Web chat',topic:'Refund complaint',out:'Handoff',sum:'Complaint detected. Escalated immediately with a conversation summary. The agent made no promises about the refund.'},
+  {t:'12:30',who:'Imran S.',ch:'WhatsApp',topic:'Roman Urdu: rate kitna hai',out:'Resolved',sum:'Replied in Roman Urdu with the daily rates for Economy and Sedan.'}
+];
+let filter='All',openRow=-1;
+function renderConvs(){
+  const cls={Booked:'b-good',Resolved:'b-neutral',Handoff:'b-warn'};
+  $('#convs').innerHTML=CONVS.map((c,i)=>({c,i})).filter(o=>filter==='All'||o.c.out===filter).map(({c,i})=>
+    `<button class="conv" data-i="${i}" aria-expanded="${i===openRow}"><span class="t">${c.t}</span><span class="who">${esc(c.who)}</span><span class="ch">${c.ch}</span><span class="topic">${esc(c.topic)}</span><span class="outc"><span class="badge ${cls[c.out]}">${c.out}</span></span></button>${i===openRow?`<div class="detail">${esc(c.sum)}</div>`:''}`).join('')
+    ||'<div class="empty">No conversations match this filter.</div>';
+}
+$('#convs').addEventListener('click',e=>{const b=e.target.closest('.conv');if(!b)return;const i=+b.dataset.i;openRow=openRow===i?-1:i;renderConvs()});
+$('#filters').addEventListener('click',e=>{const b=e.target.closest('.f');if(!b)return;filter=b.dataset.f;openRow=-1;$$('.f').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderConvs()});
+renderConvs();
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(!$('#panel-dashboard').hidden)renderVolume()},150)});
+if(!$('#panel-dashboard').hidden)renderVolume();
+</script>
+
+</body></html>
